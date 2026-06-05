@@ -150,12 +150,39 @@ class FederalReserveInflationExpectationsFetcher(
         from openpyxl import load_workbook
         from pandas import DataFrame, to_datetime
 
-        wb = load_workbook(
-            filename=BytesIO(data["file"]),
-            read_only=True,
-            data_only=True,
-            keep_vba=False,
-        )
+        file_bytes = BytesIO(data["file"])
+        try:
+            wb = load_workbook(
+                filename=file_bytes,
+                read_only=True,
+                data_only=True,
+                keep_vba=False,
+            )
+        except TypeError:
+            # openpyxl bug: some Fed Excel files contain an invalid zero-datetime
+            # (e.g. 0001-01-01T00:00:00Z) in document properties that openpyxl
+            # cannot convert to datetime.datetime. Patch _convert to fall back to
+            # datetime.now() for invalid datetime values and retry.
+            import openpyxl.descriptors.base as _base
+            from datetime import datetime as _dt
+            _orig = _base._convert
+
+            def _lenient_convert(expected_type, value):
+                if expected_type is _dt and not isinstance(value, _dt):
+                    return _dt.now()
+                return _orig(expected_type, value)
+
+            _base._convert = _lenient_convert
+            try:
+                file_bytes.seek(0)
+                wb = load_workbook(
+                    filename=file_bytes,
+                    read_only=True,
+                    data_only=True,
+                    keep_vba=False,
+                )
+            finally:
+                _base._convert = _orig
         ws = wb["INFLATION"]
         df = DataFrame(ws.values)
         df.columns = df.iloc[0]
