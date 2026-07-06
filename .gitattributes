@@ -1,3 +1,5 @@
 * linguist-vendored
 *.py linguist-vendored=false
 text eol=lf
+# Container entrypoint MUST stay LF — a CRLF shebang breaks `/bin/bash` in the image.
+docker-entrypoint.sh text eol=lf

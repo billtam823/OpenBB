@@ -48,6 +48,7 @@ build/nsis/app
 DMG/*
 *.dmg
 *.sh
+!docker-entrypoint.sh
 cli/openbb_cli/assets/styles/user/*
 
 # Platform
